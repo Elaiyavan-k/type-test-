@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="TypeFlow — a modern, premium typing test with live stats, achievements, analytics, themes, and personalized profiles." />
+  <meta name="keywords" content="typing test, wpm, typing speed, monkeytype, accuracy, typing practice" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>TypeFlow — Modern Typing Test</title>
+
+  <!-- Tailwind CSS (config must precede the script) -->
+  <script>
+    tailwind = { config: { theme: { extend: { fontFamily: { mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace'] } } } } };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- html2canvas + jsPDF for share cards and certificates -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="min-h-screen font-sans antialiased bg-bg text-fg">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-40" style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); background-color: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--glass-border);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-lg font-semibold tracking-wide font-chalk">TypeFlow</h1>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="hidden md:flex items-center gap-1">
+        <button data-nav="test" class="nav-btn nav-active">Test</button>
+        <button data-nav="dashboard" class="nav-btn">Dashboard</button>
+        <button data-nav="settings" class="nav-btn">Settings</button>
+      </nav>
+
+      <div class="flex items-center gap-1">
+        <button id="sound-toggle" class="icon-btn" title="Toggle sound">
+          <svg id="sound-on-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M9 19V5l-3 3H3v8h3l3 3z"/></svg>
+          <svg id="sound-off-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+        </button>
+        <button id="theme-toggle" class="icon-btn" title="Cycle theme">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+        <div id="profile-chip" class="hidden sm:flex items-center gap-2 px-2 py-1 cursor-pointer transition">
+          <div id="profile-avatar" class="w-7 h-7 rounded-full border border-current flex items-center justify-center text-xs font-medium overflow-hidden">
+            <span id="profile-initial">A</span>
+          </div>
+          <span id="profile-name" class="text-sm font-chalk hidden md:inline">Anonymous</span>
+        </div>
+        <button id="mobile-menu-btn" class="md:hidden icon-btn">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile menu -->
+    <div id="mobile-menu" class="hidden md:hidden border-t border-white/5 px-4 py-2">
+      <div class="flex flex-col gap-1">
+        <button data-nav="test" class="nav-btn text-left px-4 py-2 rounded-lg text-sm font-medium">Test</button>
+        <button data-nav="dashboard" class="nav-btn text-left px-4 py-2 rounded-lg text-sm font-medium">Dashboard</button>
+        <button data-nav="settings" class="nav-btn text-left px-4 py-2 rounded-lg text-sm font-medium">Settings</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+
+    <!-- =================== TEST PAGE =================== -->
+    <section id="page-test" class="page">
+
+      <!-- Compact hero / greeting — collapses once typing starts -->
+      <div id="test-hero" class="mb-8 text-center transition-all duration-300">
+        <h2 class="text-2xl sm:text-3xl font-chalk font-medium tracking-tight mb-2">
+          <span id="greeting">Welcome</span>, <span id="greeting-name">typer</span>.
+        </h2>
+        <p class="text-sm font-chalk" style="color: var(--fg-soft)">
+          Focus on the words. Press <kbd class="kbd">Tab</kbd> to restart.
+        </p>
+      </div>
+
+      <!-- Mobile stats toggle -->
+      <div class="lg:hidden mb-3 flex flex-wrap items-center justify-between gap-2">
+        <button id="mobile-options-toggle" class="btn-secondary text-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          Options
+        </button>
+        <button id="mobile-stats-toggle" class="btn-secondary text-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Stats
+        </button>
+      </div>
+
+      <!-- 3-column layout: options | typing | stats -->
+      <div class="test-grid">
+
+        <!-- ===== LEFT: Options panel ===== -->
+        <aside id="options-panel" class="test-side test-options">
+          <div class="glass-card">
+            <div class="side-section-label">Options</div>
+
+            <!-- Difficulty -->
+            <div class="mb-6">
+              <div class="grid grid-cols-3 gap-2">
+                <button data-difficulty="easy" class="difficulty-btn">
+                  <span class="difficulty-dot dot-easy"></span>
+                  Easy
+                </button>
+                <button data-difficulty="medium" class="difficulty-btn difficulty-active">
+                  <span class="difficulty-dot dot-medium"></span>
+                  Medium
+                </button>
+                <button data-difficulty="hard" class="difficulty-btn">
+                  <span class="difficulty-dot dot-hard"></span>
+                  Hard
+                </button>
+              </div>
+            </div>
+
+            <!-- Duration -->
+            <div class="mb-6">
+              <div class="grid grid-cols-4 gap-2">
+                <button data-duration="15" class="duration-btn">15s</button>
+                <button data-duration="30" class="duration-btn duration-active">30s</button>
+                <button data-duration="60" class="duration-btn">60s</button>
+                <button data-duration="120" class="duration-btn">120s</button>
+              </div>
+            </div>
+
+            <!-- Lessons -->
+            <div class="mb-6">
+              <div class="side-section-label">Lessons</div>
+              <div class="flex flex-col gap-0">
+                <button class="ctrl-btn lesson-btn" data-lesson="">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h7m-7 0v-6m14 6V8"/></svg>
+                  Free practice
+                </button>
+                <button class="ctrl-btn lesson-btn" data-lesson="home-row">
+                  <span class="ctrl-kbd">A S D F</span>
+                  Home row
+                </button>
+                <button class="ctrl-btn lesson-btn" data-lesson="top-row">
+                  <span class="ctrl-kbd">Q W E R</span>
+                  Top row
+                </button>
+                <button class="ctrl-btn lesson-btn" data-lesson="bottom-row">
+                  <span class="ctrl-kbd">Z X C V</span>
+                  Bottom row
+                </button>
+                <button class="ctrl-btn lesson-btn" data-lesson="numbers">
+                  <span class="ctrl-kbd">1 2 3</span>
+                  Numbers
+                </button>
+                <button class="ctrl-btn lesson-btn" data-lesson="capitals">
+                  <span class="ctrl-kbd">⇧ A</span>
+                  Capitals
+                </button>
+              </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="mb-2">
+              <div class="side-section-label">Controls</div>
+              <div class="flex flex-col gap-0">
+                <button id="btn-restart" class="ctrl-btn">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Restart
+                  <span class="ctrl-kbd">Tab</span>
+                </button>
+                <button id="btn-new-words" class="ctrl-btn">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16m-7 6h7"/></svg>
+                  New words
+                </button>
+                <button id="btn-daily" class="ctrl-btn">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Daily challenge
+                </button>
+                <button id="btn-tutorial" class="ctrl-btn">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                  Tutorial
+                </button>
+              </div>
+            </div>
+
+            <!-- Streak (compact) -->
+            <div class="mt-6 pt-4" style="border-top: 1px solid var(--glass-border)">
+              <div class="flex items-center gap-3">
+                <span class="text-xl">🔥</span>
+                <div class="flex-1">
+                  <div class="side-section-label mb-0">Streak</div>
+                  <div class="font-chalk font-medium"><span id="streak-current-side">0</span> days</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ===== CENTER: Big typing area ===== -->
+        <div id="typing-stage" class="test-stage">
+          <div id="typing-area" class="glass-card typing-area relative">
+            <div id="words-display" class="words-display select-none" tabindex="0"></div>
+            <input id="hidden-input" class="absolute opacity-0 pointer-events-none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+            <div id="typing-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-fg/30 text-base sm:text-lg font-medium">
+              Click here or start typing to begin...
+            </div>
+          </div>
+
+          <!-- Daily banner (compact, below) -->
+          <div id="daily-banner" class="mt-4 pt-3 flex items-center gap-3 text-sm font-chalk" style="border-top: 1px solid var(--glass-border); color: var(--fg-soft)">
+            <span class="text-base">🌟</span>
+            <div class="flex-1">
+              <span class="font-medium" style="color: var(--fg)">Daily challenge</span>
+              <span class="hidden sm:inline">— same words for everyone today</span>
+            </div>
+            <div id="daily-streak" class="text-xs font-chalk"></div>
+          </div>
+        </div>
+
+        <!-- ===== RIGHT: Live stats panel ===== -->
+        <aside id="stats-panel" class="test-side test-stats">
+          <div class="glass-card">
+            <div class="side-section-label">Live stats</div>
+
+            <div>
+              <div class="live-stat">
+                <div class="live-stat-label">Time</div>
+                <div id="stat-time" class="live-stat-value">30</div>
+                <div class="live-stat-unit">seconds</div>
+              </div>
+              <div class="live-stat live-stat-primary">
+                <div class="live-stat-label">WPM</div>
+                <div id="stat-wpm" class="live-stat-value live-stat-value-lg">0</div>
+                <div class="live-stat-unit">words / minute</div>
+              </div>
+              <div class="live-stat">
+                <div class="live-stat-label">Accuracy</div>
+                <div id="stat-accuracy" class="live-stat-value">100<span style="color: var(--fg-faint); font-size: 0.85rem">%</span></div>
+              </div>
+              <div class="grid grid-cols-2 gap-4 pt-1">
+                <div class="mini-stat">
+                  <div class="mini-stat-label">Chars</div>
+                  <div id="stat-chars" class="mini-stat-value">0</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="mini-stat-label">Errors</div>
+                  <div id="stat-errors" class="mini-stat-value">0</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--glass-border)">
+              <div class="flex items-center justify-between font-chalk text-xs mb-2" style="color: var(--fg-faint)">
+                <span>Progress</span>
+                <span id="progress-pct">0%</span>
+              </div>
+              <div class="h-px bg-white/5 relative" style="background-color: var(--glass-border)">
+                <div id="progress-bar" class="h-full absolute left-0 top-0 transition-all duration-300" style="width:0%; background-color: var(--fg)"></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+      </div>
+
+      <!-- Results Modal -->
+      <div id="results-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background-color: rgba(0,0,0,0.7)">
+        <div class="glass-card max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div class="text-center mb-6">
+            <div class="font-chalk text-xs uppercase tracking-widest mb-3" style="color: var(--fg-faint)">Result</div>
+            <div id="result-wpm" class="text-6xl sm:text-7xl font-chalk font-medium mb-2">0</div>
+            <div class="font-chalk text-sm" style="color: var(--fg-soft)">Words per minute</div>
+            <div id="result-tier" class="mt-3 text-lg font-chalk"></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="border-b pb-2" style="border-color: var(--glass-border)">
+              <div class="font-chalk text-xs uppercase tracking-widest" style="color: var(--fg-faint)">Accuracy</div>
+              <div id="result-accuracy" class="text-2xl font-chalk font-medium">0%</div>
+            </div>
+            <div class="border-b pb-2" style="border-color: var(--glass-border)">
+              <div class="font-chalk text-xs uppercase tracking-widest" style="color: var(--fg-faint)">Duration</div>
+              <div id="result-duration" class="text-2xl font-chalk font-medium">0s</div>
+            </div>
+            <div class="border-b pb-2" style="border-color: var(--glass-border)">
+              <div class="font-chalk text-xs uppercase tracking-widest" style="color: var(--fg-faint)">Correct</div>
+              <div id="result-correct" class="text-2xl font-chalk font-medium">0</div>
+            </div>
+            <div class="border-b pb-2" style="border-color: var(--glass-border)">
+              <div class="font-chalk text-xs uppercase tracking-widest" style="color: var(--fg-faint)">Errors</div>
+              <div id="result-incorrect" class="text-2xl font-chalk font-medium">0</div>
+            </div>
+          </div>
+
+          <div id="new-achievements" class="mb-6 hidden">
+            <div class="font-chalk text-sm mb-3" style="color: var(--fg-soft)">Achievements unlocked</div>
+            <div id="achievements-list" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <!-- Leaderboard prompt -->
+          <div id="leaderboard-prompt" class="mb-6 hidden">
+            <label class="font-chalk text-sm mb-2 block" style="color: var(--fg-soft)">Save to local leaderboard</label>
+            <div class="flex gap-2">
+              <input id="lb-name" type="text" placeholder="Your name" class="flex-1 px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none font-chalk" style="border: 1px solid var(--glass-border); color: var(--fg)" />
+              <button id="lb-submit" class="btn-primary">Save</button>
+            </div>
+          </div>
+
+          <!-- Share + Certificate row -->
+          <div class="result-extra-actions relative">
+            <button id="btn-share" class="result-extra-btn">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
+              Share
+            </button>
+            <button id="btn-certificate" class="result-extra-btn">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              Certificate
+            </button>
+            <div id="share-popover" class="share-popover hidden">
+              <button class="share-popover-btn" data-share="twitter">
+                <span class="share-popover-icon">𝕏</span>
+                <span>Post to X / Twitter</span>
+              </button>
+              <button class="share-popover-btn" data-share="facebook">
+                <span class="share-popover-icon" style="font-family: serif; font-weight: 700">f</span>
+                <span>Share on Facebook</span>
+              </button>
+              <button class="share-popover-btn" data-share="copy">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                <span>Copy link</span>
+              </button>
+              <button class="share-popover-btn" data-share="image">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span>Download image</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <button id="result-close" class="btn-secondary flex-1">Close</button>
+            <button id="result-again" class="btn-primary flex-1">Try again</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== DASHBOARD PAGE =================== -->
+    <section id="page-dashboard" class="page hidden">
+
+      <div class="mb-8">
+        <h2 class="text-3xl sm:text-4xl font-chalk font-medium tracking-tight mb-1">Dashboard</h2>
+        <p class="text-sm font-chalk" style="color: var(--fg-soft)">Your typing journey, in numbers.</p>
+      </div>
+
+      <!-- Stat tiles -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div class="glass-card">
+          <div class="stat-label">Tests taken</div>
+          <div id="dash-tests" class="stat-value">0</div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Average WPM</div>
+          <div id="dash-avg-wpm" class="stat-value">0</div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Best WPM</div>
+          <div id="dash-best-wpm" class="stat-value">0</div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">Average accuracy</div>
+          <div id="dash-avg-acc" class="stat-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div class="glass-card">
+          <div class="flex items-center justify-between mb-4">
+            <div class="side-section-label mb-0">WPM over time</div>
+            <div class="font-chalk text-xs" style="color: var(--fg-faint)">Last 30 tests</div>
+          </div>
+          <div class="h-64"><canvas id="chart-wpm"></canvas></div>
+        </div>
+        <div class="glass-card">
+          <div class="flex items-center justify-between mb-4">
+            <div class="side-section-label mb-0">Accuracy over time</div>
+            <div class="font-chalk text-xs" style="color: var(--fg-faint)">Last 30 tests</div>
+          </div>
+          <div class="h-64"><canvas id="chart-accuracy"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Leaderboard -->
+      <div class="glass-card mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="side-section-label mb-0">Local leaderboard — Top 10</div>
+          <button id="clear-leaderboard" class="font-chalk text-xs transition" style="color: var(--fg-faint)">Clear</button>
+        </div>
+        <div id="leaderboard-list"></div>
+        <div id="leaderboard-empty" class="text-center py-8 font-chalk text-sm hidden" style="color: var(--fg-faint)">
+          No scores yet. Complete a test and save your score to get on the board.
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="glass-card mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="side-section-label mb-0">Test history</div>
+          <button id="clear-history" class="font-chalk text-xs transition" style="color: var(--fg-faint)">Clear all</button>
+        </div>
+        <div id="history-list" class="max-h-96 overflow-y-auto"></div>
+        <div id="history-empty" class="text-center py-8 font-chalk text-sm hidden" style="color: var(--fg-faint)">
+          No tests yet. Take your first test to start tracking progress.
+        </div>
+      </div>
+
+      <!-- Achievements -->
+      <div class="glass-card mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="side-section-label mb-0">Achievements</div>
+          <div id="achievement-progress" class="font-chalk text-xs" style="color: var(--fg-faint)"></div>
+        </div>
+        <div id="achievements-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"></div>
+      </div>
+
+      <!-- Streak -->
+      <div class="glass-card mb-6">
+        <div class="flex items-center gap-4">
+          <div class="text-4xl">🔥</div>
+          <div class="flex-1">
+            <div class="side-section-label mb-1">Current streak</div>
+            <div class="text-3xl font-chalk font-medium"><span id="streak-current">0</span> days</div>
+            <div class="text-sm font-chalk" style="color: var(--fg-soft)">Longest: <span id="streak-longest">0</span> days</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== SETTINGS PAGE =================== -->
+    <section id="page-settings" class="page hidden">
+
+      <div class="mb-8">
+        <h2 class="text-3xl sm:text-4xl font-chalk font-medium tracking-tight mb-1">Settings</h2>
+        <p class="text-sm font-chalk" style="color: var(--fg-soft)">Customize the experience.</p>
+      </div>
+
+      <!-- Profile -->
+      <div class="glass-card mb-4">
+        <div class="side-section-label">Profile</div>
+        <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <div class="relative">
+            <div id="settings-avatar" class="w-20 h-20 rounded-full border flex items-center justify-center text-2xl font-chalk font-medium overflow-hidden" style="border-color: var(--glass-border)">
+              <span id="settings-avatar-initial">A</span>
+            </div>
+            <label for="avatar-upload" class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition" style="background-color: var(--fg); color: var(--bg)">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </label>
+            <input id="avatar-upload" type="file" accept="image/*" class="hidden" />
+          </div>
+          <div class="flex-1 w-full">
+            <label class="text-sm font-chalk block mb-1" style="color: var(--fg-soft)">Username</label>
+            <input id="settings-username" type="text" placeholder="Your name" class="w-full px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none" style="border: 1px solid var(--glass-border); color: var(--fg)" />
+            <p class="text-xs font-chalk mt-1" style="color: var(--fg-faint)">Stored locally on this device</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="glass-card mb-4">
+        <div class="side-section-label">Theme</div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <button data-theme="dark" class="theme-card">
+            <div class="theme-swatch" style="background: linear-gradient(135deg, #2a2d30, #1a1d20)"></div>
+            <div>Dark</div>
+          </button>
+          <button data-theme="light" class="theme-card">
+            <div class="theme-swatch" style="background: linear-gradient(135deg, #f4f1e8, #ebe7d9)"></div>
+            <div>Light</div>
+          </button>
+          <button data-theme="cyberpunk" class="theme-card">
+            <div class="theme-swatch" style="background: linear-gradient(135deg, #ff79c6, #8be9fd)"></div>
+            <div>Cyberpunk</div>
+          </button>
+          <button data-theme="amoled" class="theme-card">
+            <div class="theme-swatch" style="background: #000000"></div>
+            <div>AMOLED</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sound -->
+      <div class="glass-card mb-4">
+        <div class="side-section-label">Sound</div>
+
+        <div class="pb-4" style="border-bottom: 1px solid var(--glass-border)">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <div class="font-chalk font-medium">Sound effects</div>
+              <div class="text-sm font-chalk" style="color: var(--fg-soft)">Key clicks, spacebar, errors</div>
+            </div>
+            <div class="relative">
+              <input id="sound-setting" type="checkbox" class="sr-only peer" />
+              <div class="w-11 h-6 rounded-full peer-checked:bg-white transition-colors" style="background-color: var(--glass-border)"></div>
+              <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full peer-checked:translate-x-5 transition-transform" style="background-color: var(--fg)"></div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Sound profile -->
+        <div class="py-4" style="border-bottom: 1px solid var(--glass-border)">
+          <div class="font-chalk font-medium mb-1">Keyboard profile</div>
+          <div class="text-sm font-chalk mb-3" style="color: var(--fg-soft)">Choose your machine</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button data-profile="typewriter" class="profile-card">
+              <div class="profile-icon">⌨️</div>
+              <div class="profile-name">Typewriter</div>
+            </button>
+            <button data-profile="cherry-mx" class="profile-card">
+              <div class="profile-icon">🔴</div>
+              <div class="profile-name">Cherry MX</div>
+            </button>
+            <button data-profile="topre" class="profile-card">
+              <div class="profile-icon">⚪</div>
+              <div class="profile-name">Topre</div>
+            </button>
+            <button data-profile="silent" class="profile-card">
+              <div class="profile-icon">🔇</div>
+              <div class="profile-name">Silent</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Master volume -->
+        <div class="py-4" style="border-bottom: 1px solid var(--glass-border)">
+          <label class="block">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <div class="font-chalk font-medium">Volume</div>
+                <div class="text-sm font-chalk" style="color: var(--fg-soft)">Key click loudness</div>
+              </div>
+              <span id="volume-label" class="text-sm font-chalk">60%</span>
+            </div>
+            <input id="volume-setting" type="range" min="0" max="100" step="5" class="w-full" style="accent-color: var(--fg)" />
+          </label>
+        </div>
+
+        <!-- Ambient typewriter hum -->
+        <div class="pt-4">
+          <label class="flex items-center justify-between cursor-pointer mb-3">
+            <div>
+              <div class="font-chalk font-medium">Background hum</div>
+              <div class="text-sm font-chalk" style="color: var(--fg-soft)">Continuous machine ambience</div>
+            </div>
+            <div class="relative">
+              <input id="ambient-setting" type="checkbox" class="sr-only peer" />
+              <div class="w-11 h-6 rounded-full peer-checked:bg-white transition-colors" style="background-color: var(--glass-border)"></div>
+              <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full peer-checked:translate-x-5 transition-transform" style="background-color: var(--fg)"></div>
+            </div>
+          </label>
+          <label class="block">
+            <div class="flex items-center justify-between mb-3">
+              <div class="text-sm font-chalk" style="color: var(--fg-soft)">Ambient level</div>
+              <span id="ambient-volume-label" class="text-sm font-chalk">4%</span>
+            </div>
+            <input id="ambient-volume-setting" type="range" min="0" max="20" step="1" class="w-full" style="accent-color: var(--fg)" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Typing -->
+      <div class="glass-card mb-4">
+        <div class="side-section-label">Typing</div>
+
+        <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--glass-border)">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <div class="font-chalk font-medium">Show live WPM</div>
+              <div class="text-sm font-chalk" style="color: var(--fg-soft)">Display WPM during the test</div>
+            </div>
+            <div class="relative">
+              <input id="live-wpm-setting" type="checkbox" class="sr-only peer" />
+              <div class="w-11 h-6 rounded-full peer-checked:bg-white transition-colors" style="background-color: var(--glass-border)"></div>
+              <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full peer-checked:translate-x-5 transition-transform" style="background-color: var(--fg)"></div>
+            </div>
+          </label>
+        </div>
+
+        <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--glass-border)">
+          <label class="block">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <div class="font-chalk font-medium">Font size</div>
+                <div class="text-sm font-chalk" style="color: var(--fg-soft)">Size of the typing text</div>
+              </div>
+              <span id="font-size-label" class="text-sm font-chalk">24px</span>
+            </div>
+            <input id="font-size-setting" type="range" min="14" max="40" step="1" class="w-full accent-white" style="accent-color: var(--fg)" />
+          </label>
+        </div>
+
+        <div>
+          <label class="block">
+            <div class="mb-2">
+              <div class="font-chalk font-medium">Default duration</div>
+              <div class="text-sm font-chalk" style="color: var(--fg-soft)">Length of each test</div>
+            </div>
+            <select id="duration-setting" class="w-full px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none font-chalk" style="border: 1px solid var(--glass-border); color: var(--fg)">
+              <option value="15">15 seconds</option>
+              <option value="30">30 seconds</option>
+              <option value="60">60 seconds</option>
+              <option value="120">120 seconds</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Data -->
+      <div class="glass-card mb-4">
+        <div class="side-section-label">Data</div>
+        <p class="text-sm font-chalk mb-4" style="color: var(--fg-soft)">All data is stored locally on your device.</p>
+        <div class="flex flex-wrap gap-3">
+          <button id="reset-stats" class="btn-secondary">Reset stats</button>
+          <button id="reset-all" class="btn-danger">Reset everything</button>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="text-center text-sm font-chalk mt-8" style="color: var(--fg-faint)">
+        <div class="font-medium mb-1" style="color: var(--fg-soft)">TypeFlow</div>
+        <div>Press <kbd class="kbd">Tab</kbd> to restart during a test.</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+  <!-- Off-screen render mounts for share card + certificate -->
+  <!-- These live far off-screen so they don't affect layout, but html2canvas can still capture them. -->
+  <div id="share-card-mount" aria-hidden="true"></div>
+  <div id="certificate-mount" aria-hidden="true"></div>
+
+  <!-- =================== TUTORIAL MODAL =================== -->
+  <div id="tutorial-modal" class="tutorial-backdrop">
+    <div class="tutorial-modal" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+      <!-- Header -->
+      <div class="tutorial-header">
+        <div>
+          <div class="tutorial-eyebrow">Welcome</div>
+          <h2 id="tutorial-title" class="tutorial-title">How to use TypeFlow</h2>
+        </div>
+        <button id="tutorial-close" class="icon-btn" title="Close">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Tab navigation -->
+      <div class="tutorial-tabs">
+        <button class="tutorial-tab tutorial-tab-active" data-tab="how-to-type">How to type</button>
+        <button class="tutorial-tab" data-tab="how-to-use">How to use</button>
+        <button class="tutorial-tab" data-tab="tips">Tips</button>
+      </div>
+
+      <!-- Body wrapper -->
+      <div class="tutorial-body">
+
+      <!-- ============== TAB: How to type ============== -->
+      <div id="tab-how-to-type" class="tutorial-panel tutorial-panel-active">
+        <p class="font-chalk text-sm mb-6" style="color: var(--fg-soft)">Touch typing is a skill — once learned, you'll type faster than you can think. Here's how to start.</p>
+
+        <!-- Step 1: Posture -->
+        <div class="tutorial-step">
+          <div class="tutorial-step-num">1</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Posture & hand position</h3>
+            <p class="text-sm font-chalk mb-3" style="color: var(--fg-soft)">Sit up straight. Keep your wrists floating — don't rest them on the desk while typing. Your forearms should be parallel to the ground.</p>
+            <div class="keyboard-diagram">
+              <div class="kb-row">
+                <div class="kb-key kb-empty"></div>
+                <div class="kb-key kb-finger-l">Q</div>
+                <div class="kb-key kb-finger-l">W</div>
+                <div class="kb-key kb-finger-l">E</div>
+                <div class="kb-key kb-finger-l">R</div>
+                <div class="kb-key kb-finger-l">T</div>
+                <div class="kb-key kb-finger-r">Y</div>
+                <div class="kb-key kb-finger-r">U</div>
+                <div class="kb-key kb-finger-r">I</div>
+                <div class="kb-key kb-finger-r">O</div>
+                <div class="kb-key kb-finger-r">P</div>
+              </div>
+              <div class="kb-row">
+                <div class="kb-key kb-home-l">A</div>
+                <div class="kb-key kb-home-l">S</div>
+                <div class="kb-key kb-home-l">D</div>
+                <div class="kb-key kb-home-l">F</div>
+                <div class="kb-key kb-home-l">G</div>
+                <div class="kb-key kb-home-r">H</div>
+                <div class="kb-key kb-home-r">J</div>
+                <div class="kb-key kb-home-r">K</div>
+                <div class="kb-key kb-home-r">L</div>
+                <div class="kb-key kb-home-r">;</div>
+              </div>
+              <div class="kb-row">
+                <div class="kb-key kb-finger-l">Z</div>
+                <div class="kb-key kb-finger-l">X</div>
+                <div class="kb-key kb-finger-l">C</div>
+                <div class="kb-key kb-finger-l">V</div>
+                <div class="kb-key kb-finger-l">B</div>
+                <div class="kb-key kb-finger-r">N</div>
+                <div class="kb-key kb-finger-r">M</div>
+                <div class="kb-key kb-finger-r">,</div>
+                <div class="kb-key kb-finger-r">.</div>
+                <div class="kb-key kb-finger-r">/</div>
+              </div>
+            </div>
+            <p class="text-sm font-chalk mt-3" style="color: var(--fg-soft)">Place your fingers on the <strong style="color: var(--fg)">home row</strong>: left hand on <span class="key-cap">A</span> <span class="key-cap">S</span> <span class="key-cap">D</span> <span class="key-cap">F</span>, right hand on <span class="key-cap">J</span> <span class="key-cap">K</span> <span class="key-cap">L</span> <span class="key-cap">;</span>. The <span class="key-cap">F</span> and <span class="key-cap">J</span> keys have small bumps — feel for them.</p>
+          </div>
+        </div>
+
+        <!-- Step 2: Don't look -->
+        <div class="tutorial-step">
+          <div class="tutorial-step-num">2</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Don't look at the keys</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Keep your eyes on the screen, not the keyboard. Looking down breaks your rhythm and trains the wrong muscle memory. If you can't find a key, slide your fingers back to <span class="key-cap">F</span> and <span class="key-cap">J</span> to recenter.</p>
+          </div>
+        </div>
+
+        <!-- Step 3: Rhythm -->
+        <div class="tutorial-step">
+          <div class="tutorial-step-num">3</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Rhythm over speed</h3>
+            <p class="text-sm font-chalk mb-2" style="color: var(--fg-soft)">Accuracy first, speed will follow. Aim for steady, even keystrokes — don't hammer keys or pause to think.</p>
+            <ul class="text-sm font-chalk space-y-1 list-disc list-inside" style="color: var(--fg-soft)">
+              <li>Press each key with a quick, light tap — let it bounce back</li>
+              <li>Use the correct finger for every key (see the colored diagram above)</li>
+              <li>Keep your hands anchored on the home row between keystrokes</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Step 4: Spacebar -->
+        <div class="tutorial-step">
+          <div class="tutorial-step-num">4</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">The spacebar</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Hit the spacebar with your <strong style="color: var(--fg)">right thumb</strong>. Many beginners accidentally hit it with their index finger or palm — keep your thumbs rested on the spacebar between words.</p>
+          </div>
+        </div>
+
+        <!-- Step 5: Backspace -->
+        <div class="tutorial-step">
+          <div class="tutorial-step-num">5</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Don't fear mistakes</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Press <kbd class="kbd">Backspace</kbd> with your right pinky to fix errors. If you miss a word, finish it then go back — never break your flow to correct a single letter.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============== TAB: How to use ============== -->
+      <div id="tab-how-to-use" class="tutorial-panel">
+        <p class="font-chalk text-sm mb-6" style="color: var(--fg-soft)">A 60-second tour of TypeFlow's interface.</p>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">⌨️</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">The typing area</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Words appear in the center. The <strong style="color: var(--fg)">highlighted word</strong> is what you type now. Words behind you are dim; words ahead are barely visible. Just start typing — the test starts on your first keystroke.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">📊</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Live stats</h3>
+            <p class="text-sm font-chalk mb-2" style="color: var(--fg-soft)">The right panel shows:</p>
+            <ul class="text-sm font-chalk space-y-1 list-disc list-inside" style="color: var(--fg-soft)">
+              <li><strong style="color: var(--fg)">WPM</strong> — words per minute (5 chars = 1 word)</li>
+              <li><strong style="color: var(--fg)">Accuracy</strong> — % of correctly typed characters</li>
+              <li><strong style="color: var(--fg)">Time</strong> — seconds remaining</li>
+              <li><strong style="color: var(--fg)">Errors</strong> — incorrect keystrokes</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">⚙️</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Choosing difficulty</h3>
+            <p class="text-sm font-chalk mb-2" style="color: var(--fg-soft)">Pick the level that matches your skill:</p>
+            <ul class="text-sm font-chalk space-y-2 list-none" style="color: var(--fg-soft)">
+              <li><strong style="color: var(--fg)">Easy</strong> — short common words (3–4 letters). Good for absolute beginners and warm-ups.</li>
+              <li><strong style="color: var(--fg)">Medium</strong> — everyday English vocabulary. The default.</li>
+              <li><strong style="color: var(--fg)">Hard</strong> — long words, pangrams, numbers, punctuation. For advanced typists.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">📚</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Lessons</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Structured practice by keyboard row or skill. Pick a lesson to drill a specific area until it becomes muscle memory.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">⌨️</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Keyboard shortcuts</h3>
+            <ul class="text-sm font-chalk space-y-2 list-none" style="color: var(--fg-soft)">
+              <li><kbd class="kbd">Tab</kbd> — Restart the current test</li>
+              <li><kbd class="kbd">Space</kbd> — Move to the next word</li>
+              <li><kbd class="kbd">Backspace</kbd> — Delete last character</li>
+              <li><kbd class="kbd">Esc</kbd> — Close this tutorial</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">📈</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Your dashboard</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Click <strong style="color: var(--fg)">Dashboard</strong> to see your progress over time, WPM charts, test history, achievements, leaderboard, and daily streak.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============== TAB: Tips ============== -->
+      <div id="tab-tips" class="tutorial-panel">
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">💡</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Practice daily, even briefly</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">10 focused minutes a day beats 2 hours once a week. The streak counter helps you stay consistent — come back tomorrow.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">🎯</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Accuracy beats raw speed</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">100 WPM at 70% accuracy is slower in real life than 60 WPM at 98% accuracy — because you'll be stopping to fix errors. Aim for 95%+ before pushing for speed.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">🔥</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Don't chase the WPM counter</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">If your WPM feels stuck, slow down for a test. Paradoxically, focusing on clean form often unlocks new speed.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">👂</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Try the sound on</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Typewriter audio creates rhythm — you can <em>hear</em> if you're typing evenly. Settings → Sound → Keyboard profile picks your machine.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">📅</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Use the daily challenge</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Same words for everyone today. Compare your score with friends and watch your improvement on the same passage.</p>
+          </div>
+        </div>
+
+        <div class="tutorial-step">
+          <div class="tutorial-step-icon">🌱</div>
+          <div class="flex-1">
+            <h3 class="font-chalk text-lg font-medium mb-2">Be patient with yourself</h3>
+            <p class="text-sm font-chalk" style="color: var(--fg-soft)">Going from 30 → 60 WPM takes weeks. 60 → 80 takes months. 80 → 100 takes years. Enjoy the journey — every test makes you better.</p>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /tutorial-body -->
+
+      <div class="tutorial-footer">
+        <div class="tutorial-footer-text">Press <kbd class="kbd">Esc</kbd> to close</div>
+        <button id="tutorial-start" class="btn-primary">Start typing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/words.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/achievements.js"></script>
+  <script src="js/typing-test.js"></script>
+  <script src="js/share.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
