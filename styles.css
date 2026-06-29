@@ -288,7 +288,8 @@ body > * { position: relative; z-index: 1; }
    Duration selector — flat monospace chips
    =========================== */
 
-.duration-btn {
+.duration-btn,
+.words-btn {
   padding: 0.5rem 0.9rem;
   border-radius: 0.25rem;
   font-family: 'JetBrains Mono', monospace;
@@ -301,11 +302,13 @@ body > * { position: relative; z-index: 1; }
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
-.duration-btn:hover {
+.duration-btn:hover,
+.words-btn:hover {
   color: var(--fg-soft);
   border-color: var(--chalk-dim);
 }
-.duration-active {
+.duration-active,
+.words-active {
   color: var(--bg);
   background-color: var(--fg);
   border-color: var(--fg);
@@ -378,6 +381,16 @@ body > * { position: relative; z-index: 1; }
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
 }
 
+/* Inner wrapper: holds the rendered words and gets translateX-shifted so
+   the current word stays horizontally centered even when its line wraps.
+   No transition: per-keystroke updates must snap, not animate (animating
+   each keystroke causes visible jitter). */
+.words-display .words-inner {
+  display: inline-block;
+  white-space: normal;
+  will-change: transform;
+}
+
 @media (max-width: 640px) {
   .typing-area { padding: 2rem 1rem; min-height: 280px; }
   .words-display { font-size: calc(var(--font-size, 22px) * 0.95); line-height: 1.95; }
@@ -426,6 +439,10 @@ body > * { position: relative; z-index: 1; }
   text-decoration: underline wavy var(--error);
   text-decoration-thickness: 1.5px;
   text-underline-offset: 4px;
+}
+.char.incorrect.extra {
+  color: var(--error) !important;
+  text-decoration: underline wavy var(--error);
 }
 
 /* Future char — even dimmer */
@@ -626,8 +643,83 @@ body.is-typing #test-hero {
 }
 
 /* ===========================
-   Theme cards — flat swatches
+   Focus mode — distraction-free typing
    =========================== */
+
+/* Exit button is only visible while focus mode is active. */
+.focus-exit-btn {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.25rem;
+  background-color: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--fg-soft);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+.focus-exit-btn:hover {
+  color: var(--fg);
+  border-color: var(--chalk-dim);
+  background-color: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+/* In focus mode, hide chrome (header, side panels, hero, banner) but keep the
+   typing area visible. Other pages (dashboard, settings) and overlays are
+   also hidden. The typing area is then promoted to fill the viewport via
+   position:fixed, escaping any parent layout. */
+body.focus-mode header,
+body.focus-mode #test-hero,
+body.focus-mode #options-panel,
+body.focus-mode #stats-panel,
+body.focus-mode .lg\:hidden.mb-3,
+body.focus-mode #daily-banner,
+body.focus-mode #page-dashboard,
+body.focus-mode #page-settings {
+  display: none !important;
+}
+body.focus-mode {
+  background-image: none;
+}
+/* Hide <main> too — #typing-stage escapes it via position:fixed, but its
+   siblings inside <main> would otherwise briefly take layout space. */
+body.focus-mode main {
+  visibility: hidden;
+}
+body.focus-mode #typing-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-color: var(--bg);
+}
+body.focus-mode #typing-stage > .glass-card {
+  width: 100%;
+  max-width: 1100px;
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body.focus-mode #typing-stage .words-display {
+  font-size: clamp(20px, 3.2vw, 36px);
+  max-width: 1000px;
+}
+body.focus-mode .focus-exit-btn {
+  display: inline-flex;
+}
+body.focus-mode #typing-placeholder {
+  font-size: clamp(14px, 1.4vw, 18px);
+}
 
 .theme-card {
   display: flex;

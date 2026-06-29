@@ -14,6 +14,9 @@ const TypingTest = {
   perSecondSamples: [],    // { sec, wpm, accuracy }
   difficulty: 'medium',    // easy | medium | hard
   lesson: null,            // active lesson key or null
+  mode: 'time',            // time | words | custom
+  wordsTarget: 25,         // target word count for words/custom modes
+  suddenDeath: false,      // restart instantly on any mistake
 
   // Live stats
   stats: {
@@ -22,7 +25,8 @@ const TypingTest = {
     charactersTyped: 0,
     correctChars: 0,
     incorrectChars: 0,
-    rawWPM: 0
+    rawWPM: 0,
+    mistakesByKey: {}      // key -> count
   },
 
   // Callbacks
@@ -64,7 +68,7 @@ const TypingTest = {
     this.typedChars = [];
     this.startTime = null;
     this.endTime = null;
-    this.timeRemaining = this.duration;
+    this.timeRemaining = this.mode === 'time' ? this.duration : 0;
     this.perSecondSamples = [];
     this.stats = {
       wpm: 0,
@@ -72,7 +76,8 @@ const TypingTest = {
       charactersTyped: 0,
       correctChars: 0,
       incorrectChars: 0,
-      rawWPM: 0
+      rawWPM: 0,
+      mistakesByKey: {}
     };
     this.state = 'idle';
     if (this.timerInterval) {
@@ -96,11 +101,17 @@ const TypingTest = {
 
   tick() {
     if (this.state !== 'running') return;
-    this.timeRemaining--;
-    this.recomputeStats();
-    if (this.onUpdate) this.onUpdate();
-    if (this.timeRemaining <= 0) {
-      this.finish();
+    if (this.mode === 'time') {
+      this.timeRemaining--;
+      this.recomputeStats();
+      if (this.onUpdate) this.onUpdate();
+      if (this.timeRemaining <= 0) {
+        this.finish();
+      }
+    } else {
+      this.timeRemaining++;
+      this.recomputeStats();
+      if (this.onUpdate) this.onUpdate();
     }
   },
 
@@ -139,6 +150,26 @@ const TypingTest = {
       Sound.keyClick();
     } else {
       Sound.error();
+      const expectedChar = expected ? expected.toLowerCase() : '';
+      if (expectedChar && expectedChar.match(/[a-z0-9]/i)) {
+        this.stats.mistakesByKey[expectedChar] = (this.stats.mistakesByKey[expectedChar] || 0) + 1;
+      }
+      if (this.suddenDeath) {
+        setTimeout(() => {
+          this.restart();
+          if (typeof showToast !== 'undefined') {
+            showToast('Resetting test due to mistake (Sudden Death)!', 'error');
+          }
+        }, 50);
+        return;
+      }
+    }
+
+    // Check if finished in words/custom mode
+    if (this.mode !== 'time' &&
+        this.currentWordIndex === this.wordsTarget - 1 &&
+        this.currentCharIndex === currentWord.length) {
+      this.finish();
     }
   },
 
@@ -151,8 +182,14 @@ const TypingTest = {
     // Deeper thud for spacebar
     Sound.spacebar();
 
+    // Check if finished in words/custom mode
+    if (this.mode !== 'time' && this.currentWordIndex >= this.wordsTarget) {
+      this.finish();
+      return;
+    }
+
     // Auto-extend with more words if running low (respects difficulty/lesson)
-    if (this.currentWordIndex >= this.words.length - 10) {
+    if (this.mode === 'time' && this.currentWordIndex >= this.words.length - 10) {
       let more;
       if (this.lesson) more = getLessonWords(this.lesson);
       else more = getWordsByDifficulty(this.difficulty, 30);
@@ -188,7 +225,6 @@ const TypingTest = {
     let total = 0;
 
     for (const t of this.typedChars) {
-      if (t.isSpace) continue;
       total++;
       if (t.correct) correct++;
       else incorrect++;
@@ -197,8 +233,9 @@ const TypingTest = {
     const elapsedMs = this.startTime ? performance.now() - this.startTime : 0;
     const elapsedMin = elapsedMs / 60000;
     // Standard WPM: 5 chars = 1 word
-    const wpm = elapsedMin > 0 ? Math.round(correct / 5 / elapsedMin) : 0;
-    const rawWPM = elapsedMin > 0 ? Math.round(total / 5 / elapsedMin) : 0;
+    // Stability safeguard: only compute WPM after 1 second has elapsed to avoid starting spikes
+    const wpm = elapsedMs >= 1000 ? Math.round(correct / 5 / elapsedMin) : 0;
+    const rawWPM = elapsedMs >= 1000 ? Math.round(total / 5 / elapsedMin) : 0;
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 100;
 
     this.stats.wpm = wpm;
@@ -231,6 +268,10 @@ const TypingTest = {
     }
     this.recomputeStats();
     Sound.finish();
+
+    const elapsedSec = this.startTime && this.endTime ? Math.round((this.endTime - this.startTime) / 1000) : this.duration;
+    const finalDuration = this.mode === 'time' ? this.duration : (elapsedSec || 1);
+
     if (this.onFinish) {
       this.onFinish({
         wpm: this.stats.wpm,
@@ -238,8 +279,9 @@ const TypingTest = {
         correctChars: this.stats.correctChars,
         incorrectChars: this.stats.incorrectChars,
         totalChars: this.stats.charactersTyped,
-        duration: this.duration,
-        samples: [...this.perSecondSamples]
+        duration: finalDuration,
+        samples: [...this.perSecondSamples],
+        mistakesByKey: { ...this.stats.mistakesByKey }
       });
     }
   },
@@ -252,10 +294,16 @@ const TypingTest = {
 
   // New random words
   newWords(count = 60) {
+    if (this.mode === 'custom') {
+      this.reset();
+      if (this.onUpdate) this.onUpdate();
+      return;
+    }
     if (this.lesson) {
       this.words = getLessonWords(this.lesson);
     } else {
-      this.words = getWordsByDifficulty(this.difficulty, count);
+      const loadCount = (this.mode === 'words') ? this.wordsTarget : count;
+      this.words = getWordsByDifficulty(this.difficulty, loadCount);
     }
     this.reset();
     if (this.onUpdate) this.onUpdate();

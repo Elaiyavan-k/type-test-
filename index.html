@@ -52,6 +52,9 @@
         <button id="theme-toggle" class="icon-btn" title="Cycle theme">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
         </button>
+        <button id="focus-toggle" class="icon-btn" title="Focus mode">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+        </button>
         <div id="profile-chip" class="hidden sm:flex items-center gap-2 px-2 py-1 cursor-pointer transition">
           <div id="profile-avatar" class="w-7 h-7 rounded-full border border-current flex items-center justify-center text-xs font-medium overflow-hidden">
             <span id="profile-initial">A</span>
@@ -127,14 +130,51 @@
               </div>
             </div>
 
-            <!-- Duration -->
-            <div class="mb-6">
+            <!-- Test Mode -->
+            <div class="mb-4">
+              <div class="side-section-label">Test Mode</div>
+              <div class="grid grid-cols-3 gap-2">
+                <button id="mode-time-btn" class="difficulty-btn difficulty-active justify-center font-semibold">
+                  Time
+                </button>
+                <button id="mode-words-btn" class="difficulty-btn justify-center font-semibold">
+                  Words
+                </button>
+                <button id="mode-custom-btn" class="difficulty-btn justify-center font-semibold">
+                  Custom
+                </button>
+              </div>
+            </div>
+
+            <!-- Duration (Time Mode Goal) -->
+            <div id="goal-time-container" class="mb-6">
+              <div class="side-section-label">Duration</div>
               <div class="grid grid-cols-4 gap-2">
                 <button data-duration="15" class="duration-btn">15s</button>
                 <button data-duration="30" class="duration-btn duration-active">30s</button>
                 <button data-duration="60" class="duration-btn">60s</button>
                 <button data-duration="120" class="duration-btn">120s</button>
               </div>
+            </div>
+
+            <!-- Words Goal (Words Mode Goal) -->
+            <div id="goal-words-container" class="mb-6 hidden">
+              <div class="side-section-label">Word Count</div>
+              <div class="grid grid-cols-4 gap-2">
+                <button data-words="10" class="words-btn">10w</button>
+                <button data-words="25" class="words-btn words-active">25w</button>
+                <button data-words="50" class="words-btn">50w</button>
+                <button data-words="100" class="words-btn">100w</button>
+              </div>
+            </div>
+
+            <!-- Custom Practice -->
+            <div id="custom-text-container" class="mb-6 hidden">
+              <div class="side-section-label">Custom Practice</div>
+              <textarea id="custom-text-input" rows="3" class="w-full p-2 text-xs font-chalk rounded bg-black/10 focus:outline-none" style="border: 1px solid var(--glass-border); color: var(--fg); resize: none;" placeholder="Paste text or code snippet here..."></textarea>
+              <button id="btn-load-custom" class="w-full mt-2 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs font-chalk font-semibold" style="border: 1px solid var(--glass-border); color: var(--fg); transition: background-color 0.2s;">
+                Apply Text
+              </button>
             </div>
 
             <!-- Lessons -->
@@ -192,6 +232,21 @@
               </div>
             </div>
 
+            <!-- Sudden Death Toggle -->
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--glass-border)">
+              <label class="flex items-center justify-between cursor-pointer">
+                <div>
+                  <div class="side-section-label mb-0" style="font-size: 0.7rem;">Sudden Death</div>
+                  <div class="text-xxs font-chalk mt-0.5" style="color: var(--fg-soft); font-size: 0.65rem;">Reset on any error</div>
+                </div>
+                <div class="relative">
+                  <input id="sudden-death-toggle" type="checkbox" class="sr-only peer" />
+                  <div class="w-9 h-5 rounded-full peer-checked:bg-white/20 transition-colors" style="background-color: var(--glass-border)"></div>
+                  <div class="absolute top-0.5 left-0.5 w-4 h-4 rounded-full peer-checked:translate-x-4 transition-transform" style="background-color: var(--fg)"></div>
+                </div>
+              </label>
+            </div>
+
             <!-- Streak (compact) -->
             <div class="mt-6 pt-4" style="border-top: 1px solid var(--glass-border)">
               <div class="flex items-center gap-3">
@@ -207,6 +262,9 @@
 
         <!-- ===== CENTER: Big typing area ===== -->
         <div id="typing-stage" class="test-stage">
+          <button id="focus-exit" class="focus-exit-btn" title="Exit focus (Esc)" aria-label="Exit focus mode">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
           <div id="typing-area" class="glass-card typing-area relative">
             <div id="words-display" class="words-display select-none" tabindex="0"></div>
             <input id="hidden-input" class="absolute opacity-0 pointer-events-none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
@@ -300,6 +358,12 @@
               <div class="font-chalk text-xs uppercase tracking-widest" style="color: var(--fg-faint)">Errors</div>
               <div id="result-incorrect" class="text-2xl font-chalk font-medium">0</div>
             </div>
+          </div>
+
+          <!-- Mistakes (Keys to Practice) -->
+          <div id="result-mistakes-container" class="mb-6 hidden">
+            <div class="font-chalk text-xs uppercase tracking-widest mb-3" style="color: var(--fg-faint)">Keys to practice</div>
+            <div id="result-mistakes" class="flex flex-wrap gap-2"></div>
           </div>
 
           <div id="new-achievements" class="mb-6 hidden">

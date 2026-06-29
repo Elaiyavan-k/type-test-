@@ -15,6 +15,7 @@
       this.loadProfile();
       this.bindNavigation();
       this.bindTypingTest();
+      this.bindModeSelector();
       this.bindSettings();
       this.bindDashboard();
       this.bindProfileEditor();
@@ -23,6 +24,8 @@
       this.updateGreeting();
       this.maybeAutoShowTutorial();
     },
+
+
 
     // ========== Theme ==========
     applyTheme() {
@@ -42,6 +45,19 @@
       const cur = Storage.getTheme();
       const next = order[(order.indexOf(cur) + 1) % order.length];
       this.setTheme(next);
+    },
+
+    // ========== Focus mode ==========
+    setFocusMode(on) {
+      document.body.classList.toggle('focus-mode', !!on);
+
+      // Re-measure after layout settles so the centering transform is correct.
+      requestAnimationFrame(() => this.scrollCurrentIntoView());
+      // Refocus the hidden input so typing continues uninterrupted.
+      if (on) {
+        const input = document.getElementById('hidden-input');
+        if (input) input.focus();
+      }
     },
 
     updateThemeCards() {
@@ -80,6 +96,41 @@
       // Apply duration
       TypingTest.setDuration(settings.duration);
       this.updateDurationButtons(settings.duration);
+
+      // Apply test mode, words target, and sudden death
+      TypingTest.mode = settings.mode || 'time';
+      TypingTest.wordsTarget = settings.wordsTarget || 25;
+      TypingTest.suddenDeath = !!settings.suddenDeath;
+
+      // Update UI state for these options
+      const suddenDeathToggle = document.getElementById('sudden-death-toggle');
+      if (suddenDeathToggle) suddenDeathToggle.checked = TypingTest.suddenDeath;
+
+      const customTextInput = document.getElementById('custom-text-input');
+      if (customTextInput) customTextInput.value = settings.customText || '';
+
+      // Set active classes for mode buttons
+      const timeBtn = document.getElementById('mode-time-btn');
+      const wordsBtn = document.getElementById('mode-words-btn');
+      const customBtn = document.getElementById('mode-custom-btn');
+      if (timeBtn && wordsBtn && customBtn) {
+        timeBtn.classList.toggle('difficulty-active', TypingTest.mode === 'time');
+        wordsBtn.classList.toggle('difficulty-active', TypingTest.mode === 'words');
+        customBtn.classList.toggle('difficulty-active', TypingTest.mode === 'custom');
+      }
+
+      // Show/hide mode goal containers
+      const timeContainer = document.getElementById('goal-time-container');
+      const wordsContainer = document.getElementById('goal-words-container');
+      const customContainer = document.getElementById('custom-text-container');
+      if (timeContainer) timeContainer.classList.toggle('hidden', TypingTest.mode !== 'time');
+      if (wordsContainer) wordsContainer.classList.toggle('hidden', TypingTest.mode !== 'words');
+      if (customContainer) customContainer.classList.toggle('hidden', TypingTest.mode !== 'custom');
+
+      // Update words goal buttons active state
+      document.querySelectorAll('.words-btn').forEach(btn => {
+        btn.classList.toggle('words-active', parseInt(btn.dataset.words) === TypingTest.wordsTarget);
+      });
 
       // Update settings UI inputs
       const fontSizeInput = document.getElementById('font-size-setting');
@@ -139,6 +190,16 @@
 
       // Theme toggle (header)
       document.getElementById('theme-toggle').addEventListener('click', () => this.cycleTheme());
+
+      // Focus mode toggle (header) — toggles, and jumps to test page when turning on.
+      document.getElementById('focus-toggle').addEventListener('click', () => {
+        const turningOn = !document.body.classList.contains('focus-mode');
+        if (turningOn && this.currentPage !== 'test') this.navigate('test');
+        this.setFocusMode(turningOn);
+      });
+      document.getElementById('focus-exit').addEventListener('click', () => this.setFocusMode(false));
+
+
 
       // Theme cards
       document.querySelectorAll('.theme-card').forEach(card => {
@@ -360,7 +421,16 @@
     initTypingEngine() {
       TypingTest.onUpdate = () => this.renderTyping();
       TypingTest.onFinish = (result) => this.handleTestFinish(result);
-      TypingTest.loadWords(60);
+      
+      const settings = Storage.getSettings();
+      if (TypingTest.mode === 'words') {
+        TypingTest.loadWords(TypingTest.wordsTarget);
+      } else if (TypingTest.mode === 'custom' && settings.customText) {
+        const wordsList = settings.customText.split(/\s+/).filter(w => w.length > 0);
+        TypingTest.loadWords(wordsList.length, wordsList);
+      } else {
+        TypingTest.loadWords(60);
+      }
       this.renderTyping();
     },
 
@@ -378,8 +448,18 @@
       typingArea.addEventListener('click', focusInput);
       wordsDisplay.addEventListener('click', focusInput);
 
+      // (F shortcut is bound separately in bindFocusShortcut in capture phase,
+      // so it runs before this handler and never reaches the typing engine.)
+
       document.addEventListener('keydown', (e) => {
         if (this.currentPage !== 'test') return;
+
+        // Esc = exit focus mode (and also close fullscreen)
+        if (e.key === 'Escape' && document.body.classList.contains('focus-mode')) {
+          e.preventDefault();
+          this.setFocusMode(false);
+          return;
+        }
 
         // Tab = restart (don't focus blur)
         if (e.key === 'Tab') {
@@ -521,23 +601,146 @@
       });
     },
 
+    bindModeSelector() {
+      const timeBtn = document.getElementById('mode-time-btn');
+      const wordsBtn = document.getElementById('mode-words-btn');
+      const customBtn = document.getElementById('mode-custom-btn');
+
+      const timeContainer = document.getElementById('goal-time-container');
+      const wordsContainer = document.getElementById('goal-words-container');
+      const customContainer = document.getElementById('custom-text-container');
+
+      const placeholder = document.getElementById('typing-placeholder');
+
+      const switchMode = (mode) => {
+        TypingTest.mode = mode;
+        timeBtn.classList.toggle('difficulty-active', mode === 'time');
+        wordsBtn.classList.toggle('difficulty-active', mode === 'words');
+        customBtn.classList.toggle('difficulty-active', mode === 'custom');
+
+        timeContainer.classList.toggle('hidden', mode !== 'time');
+        wordsContainer.classList.toggle('hidden', mode !== 'words');
+        customContainer.classList.toggle('hidden', mode !== 'custom');
+
+        const settings = Storage.getSettings();
+        settings.mode = mode;
+        Storage.setSettings(settings);
+
+        if (mode === 'time') {
+          TypingTest.setDuration(settings.duration || 30);
+          TypingTest.newWords(60);
+        } else if (mode === 'words') {
+          TypingTest.wordsTarget = settings.wordsTarget || 25;
+          TypingTest.newWords(TypingTest.wordsTarget);
+        } else if (mode === 'custom') {
+          const text = (settings.customText || '').trim();
+          if (text) {
+            const wordsList = text.split(/\s+/).filter(w => w.length > 0);
+            TypingTest.wordsTarget = wordsList.length;
+            TypingTest.loadWords(wordsList.length, wordsList);
+          } else {
+            TypingTest.wordsTarget = 0;
+            TypingTest.loadWords(0, []);
+          }
+        }
+        
+        if (placeholder) placeholder.style.display = 'block';
+        const hiddenInput = document.getElementById('hidden-input');
+        if (hiddenInput) hiddenInput.blur();
+      };
+
+      timeBtn.addEventListener('click', () => switchMode('time'));
+      wordsBtn.addEventListener('click', () => switchMode('words'));
+      customBtn.addEventListener('click', () => switchMode('custom'));
+
+      // Word target buttons
+      document.querySelectorAll('.words-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.words-btn').forEach(b => b.classList.remove('words-active'));
+          btn.classList.add('words-active');
+          const target = parseInt(btn.dataset.words);
+          TypingTest.wordsTarget = target;
+          TypingTest.newWords(target);
+
+          const settings = Storage.getSettings();
+          settings.wordsTarget = target;
+          Storage.setSettings(settings);
+
+          if (placeholder) placeholder.style.display = 'block';
+          const hiddenInput = document.getElementById('hidden-input');
+          if (hiddenInput) hiddenInput.focus();
+        });
+      });
+
+      // Load custom text button
+      document.getElementById('btn-load-custom').addEventListener('click', () => {
+        const text = document.getElementById('custom-text-input').value.trim();
+        if (!text) {
+          if (typeof showToast !== 'undefined') showToast('Please enter some text first!', 'error');
+          return;
+        }
+        const wordsList = text.split(/\s+/).filter(w => w.length > 0);
+        TypingTest.wordsTarget = wordsList.length;
+        TypingTest.loadWords(wordsList.length, wordsList);
+
+        const settings = Storage.getSettings();
+        settings.customText = text;
+        Storage.setSettings(settings);
+
+        if (placeholder) placeholder.style.display = 'block';
+        if (typeof showToast !== 'undefined') showToast(`Loaded custom practice text (${wordsList.length} words)!`, 'success');
+        const hiddenInput = document.getElementById('hidden-input');
+        if (hiddenInput) hiddenInput.focus();
+      });
+
+      // Sudden Death toggle
+      const suddenDeathToggle = document.getElementById('sudden-death-toggle');
+      if (suddenDeathToggle) {
+        suddenDeathToggle.addEventListener('change', (e) => {
+          const checked = e.target.checked;
+          TypingTest.suddenDeath = checked;
+          
+          const settings = Storage.getSettings();
+          settings.suddenDeath = checked;
+          Storage.setSettings(settings);
+
+          if (typeof showToast !== 'undefined') {
+            showToast(checked ? 'Sudden Death mode enabled!' : 'Sudden Death mode disabled!', 'success');
+          }
+          TypingTest.restart();
+          if (placeholder) placeholder.style.display = 'block';
+        });
+      }
+    },
+
     renderTyping() {
       const display = document.getElementById('words-display');
-      const html = this.buildWordsHTML();
-      display.innerHTML = html;
+      // Use an inner wrapper so horizontal translateX doesn't get clipped by
+      // the display's overflow:hidden (or visibly clip adjacent words).
+      display.innerHTML = `<span class="words-inner">${this.buildWordsHTML()}</span>`;
 
       // Update stats (both side panel IDs)
       const acc = `${TypingTest.stats.accuracy}<span class="text-base text-fg/50">%</span>`;
-      document.getElementById('stat-time').textContent = TypingTest.timeRemaining;
+      
+      // Handle dynamic time remaining / elapsed representation
+      let displayTime = TypingTest.timeRemaining;
+      document.getElementById('stat-time').textContent = displayTime;
       document.getElementById('stat-wpm').textContent = TypingTest.stats.wpm;
       document.getElementById('stat-accuracy').innerHTML = acc;
       document.getElementById('stat-chars').textContent = TypingTest.stats.charactersTyped;
       document.getElementById('stat-errors').textContent = TypingTest.stats.incorrectChars;
 
-      // Progress bar
-      const progress = TypingTest.duration > 0
-        ? Math.round(((TypingTest.duration - TypingTest.timeRemaining) / TypingTest.duration) * 100)
-        : 0;
+      // Progress bar calculation based on mode
+      let progress = 0;
+      if (TypingTest.mode === 'time') {
+        progress = TypingTest.duration > 0
+          ? Math.round(((TypingTest.duration - TypingTest.timeRemaining) / TypingTest.duration) * 100)
+          : 0;
+      } else {
+        progress = TypingTest.wordsTarget > 0
+          ? Math.round((TypingTest.currentWordIndex / TypingTest.wordsTarget) * 100)
+          : 0;
+      }
       const bar = document.getElementById('progress-bar');
       const pct = document.getElementById('progress-pct');
       if (bar) bar.style.width = `${progress}%`;
@@ -595,8 +798,20 @@
           chars.push(`<span class="${cls}">${this.escapeHTML(displayChar)}</span>`);
         }
 
-        // Trailing-space caret between words
-        if (wi === curWI && curCI === word.length) {
+        // Render extra characters typed past word length
+        let extraCi = word.length;
+        while (charMap.has(`${wi}-${extraCi}`)) {
+          const typed = charMap.get(`${wi}-${extraCi}`);
+          let cls = 'char incorrect extra';
+          if (wi === curWI && extraCi === curCI) {
+            cls += ' current';
+          }
+          chars.push(`<span class="${cls}">${this.escapeHTML(typed.char)}</span>`);
+          extraCi++;
+        }
+
+        // General caret placement (at end of standard chars or extra chars)
+        if (wi === curWI && curCI === extraCi) {
           chars.push('<span class="char current space-cursor">&nbsp;</span>');
         }
 
@@ -764,15 +979,36 @@
 
     scrollCurrentIntoView() {
       const display = document.getElementById('words-display');
+      const inner = display.querySelector('.words-inner');
       const currentWord = display.querySelector('.word.current');
       if (!currentWord) return;
+
+      // Reset prior transform so we always measure the "natural" layout.
+      // (Reading the word's rect while a translateX is applied would shift
+      // the value we're trying to compute, causing feedback / jitter.)
+      if (inner) inner.style.transform = '';
+
       const displayRect = display.getBoundingClientRect();
       const wordRect = currentWord.getBoundingClientRect();
-      const wordCenter = wordRect.top + wordRect.height / 2;
-      const displayCenter = displayRect.top + displayRect.height / 2;
-      // Keep the current word vertically centered
-      const delta = wordCenter - displayCenter;
-      display.scrollTop += delta;
+
+      // Vertical centering — clamp so we don't scroll past top/bottom.
+      const wordCenterY = wordRect.top + wordRect.height / 2;
+      const displayCenterY = displayRect.top + displayRect.height / 2;
+      const maxScroll = display.scrollHeight - display.clientHeight;
+      const desiredScroll = display.scrollTop + (wordCenterY - displayCenterY);
+      display.scrollTop = Math.max(0, Math.min(maxScroll, desiredScroll));
+
+      // Horizontal centering — re-measure after the transform reset, then
+      // shift the inner wrapper so the current word sits on the center axis.
+      if (inner) {
+        const wordRect2 = currentWord.getBoundingClientRect();
+        const wordCenterX = wordRect2.left + wordRect2.width / 2;
+        const displayCenterX = displayRect.left + displayRect.width / 2;
+        const xOffset = displayCenterX - wordCenterX;
+        if (Math.abs(xOffset) > 0.5) {
+          inner.style.transform = `translateX(${xOffset}px)`;
+        }
+      }
     },
 
     handleTestFinish(result) {
@@ -811,6 +1047,24 @@
       document.getElementById('result-duration').textContent = `${result.duration}s`;
       document.getElementById('result-correct').textContent = result.correctChars;
       document.getElementById('result-incorrect').textContent = result.incorrectChars;
+
+      // Populate mistakes to practice
+      const mistakesContainer = document.getElementById('result-mistakes-container');
+      const mistakesEl = document.getElementById('result-mistakes');
+      if (mistakesContainer && mistakesEl) {
+        const sortedMistakes = Object.entries(result.mistakesByKey || {})
+          .sort((a, b) => b[1] - a[1]);
+
+        if (sortedMistakes.length > 0) {
+          mistakesContainer.classList.remove('hidden');
+          mistakesEl.innerHTML = sortedMistakes
+            .slice(0, 5)
+            .map(([key, count]) => `<span class="px-2.5 py-1 rounded font-chalk text-xs" style="background-color: var(--bg-soft); border: 1px solid var(--glass-border); color: var(--fg-soft)"><strong style="color: var(--fg)">${key.toUpperCase()}</strong> (${count})</span>`)
+            .join('');
+        } else {
+          mistakesContainer.classList.add('hidden');
+        }
+      }
 
       const tier = getPerformanceTier(result.wpm);
       const tierEl = document.getElementById('result-tier');

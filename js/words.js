@@ -79,80 +79,58 @@ function getRandomWords(count = 50) {
   return words;
 }
 
-// ========== Difficulty levels ==========
-// Easy: short, common 3-4 letter words — great for beginners learning home row
-// Medium: common everyday English words (5-8 letters)
-// Hard: longer / less common words, includes numbers, punctuation, capitalization
-const EASY_WORDS = WORD_LIST.filter(w => w.length <= 4);
-const HARD_EXTRA = [
-  'rhythm', 'queue', 'mnemonic', 'pseudonym', 'pharaoh', 'exquisite', 'onomatopoeia',
-  'juxtapose', 'kaleidoscope', 'labyrinth', 'quintessential', 'serendipity', 'paradigm',
-  'phenomenon', 'entrepreneur', 'conscientious', 'idiosyncratic', 'mellifluous', 'obfuscate',
-  'penultimate', 'quixotic', 'ubiquitous', 'verisimilitude', 'zeitgeist', 'calligraphy',
-  'photosynthesis', 'hippopotamus', 'chrysanthemum', 'flabbergasted', 'incomprehensible',
-  'perspicacious', 'sesquipedalian', 'antidisestablishmentarianism'
-];
-const HARD_PHRASES = [
-  'The quick brown fox jumps over the lazy dog.',
-  'Pack my box with five dozen liquor jugs.',
-  'How vexingly quick daft zebras jump!',
-  'Sphinx of black quartz, judge my vow.',
-  'The five boxing wizards jump quickly.',
-  'Jackdaws love my big sphinx of quartz.',
-  'Cwm fjord bank glyphs vext quiz.',
-  'Heavy boxes perform quick waltzes and jigs.',
-  'A wizard\'s job is to vex chumps quickly.',
-  'Crazy Fredrick bought many very exquisite opal jewels.',
-  'We promptly judged antique ivory buckles for the next prize.',
-  'A large fawn jumped quickly over white zinc boxes.',
-  'Back in June we delivered oxygen equipment of the same size.',
-  'Few quips galvanized the mock jury box.',
-  'The jay, pig, fox, zebra, and my wolves quack!',
-  'Sympathizing would fix Quaker objectives.',
-  'Why shouldn\'t a quixotic Kazakh vampire vex all jolly Swabians?',
-  'Glib jocks quiz nymph to vex dwarf.',
-  'Blowzy red-foxed nymphs deftly jugged my quartz.',
-  'Cozy sphinx waves quart jug of bad milk.',
-  'Fix problem: bold hawk sends first vibrant squawk.',
-  'Mr. Jock, TV quiz Ph.D., bags few lynx.',
-  'Amazingly few discotheques provide jukeboxes.',
-  'Quick zephyrs blow, vexing daft Jim.',
-  'Two driven jocks help fax my big quiz.',
-  'Mix Zapf with brackets: [] {} <> ()',
-  'Email me at jane.doe+work@example.com by 12:30 p.m.',
-  'Set price to $1,234.50 (approx. €1,150).',
-  'Coordinates: 40.7128° N, 74.0060° W.',
-  'The ratio is 3:1 — that\'s 75% efficiency!'
-];
+// ========== Curated Paragraphs by Difficulty ==========
+const PARAGRAPHS = {
+  easy: [
+    "The sun is hot today. A little bird sings a song in the tree. We can go for a walk by the lake. The water is blue and calm. I see a green leaf on the grass. Life is good and simple. We like to run and play.",
+    "Come and look at this. The cat is asleep on the soft mat. It has a long tail and white paws. Do not make a noise. We want it to rest. Soon we will have some food. It is time to eat.",
+    "I have a big book. It has many pictures of animals. Some are green and some are red. I read this book every day before I go to sleep. It helps me learn new words. My mom gave it to me.",
+    "The tree is very tall. It has green leaves in summer. In winter the leaves fall to the ground. A small squirrel has its home in the trunk. It runs up and down looking for nuts. It is fast.",
+    "We went to the beach. The sand was warm under our feet. We built a sand castle near the water. The waves were small. We found some shells. It was a happy day with my friends. We will go back soon.",
+    "My dog is very kind. He likes to play catch with a red ball. When I come home he wags his tail. He sits by my side when I do my work. We go for walks in the park. He is my best friend.",
+    "The sky has many stars tonight. The moon is big and bright. It is dark and quiet outside. I like to look out of the window. The world is asleep. It is time for me to go to bed and dream.",
+    "We can make a cake today. We need some flour, sugar, and milk. We will mix them in a big bowl. Then we put it in the oven. It smells very good. We will share it with the family."
+  ],
+  medium: [
+    "In the middle of every difficulty lies opportunity. The greatest glory in living lies not in never falling, but in rising every time we fall. Believe you can and you are halfway there. Your time is limited, so do not waste it living someone else's life.",
+    "Learning never exhausts the mind. The beautiful thing about learning is that nobody can take it away from you. Education is the most powerful weapon which you can use to change the world. Always do your best, and what you plant now, you will harvest later.",
+    "The only way to do great work is to love what you do. If you have not found it yet, keep looking. Do not settle. As with all matters of the heart, you will know when you find it. Have the courage to follow your heart and intuition.",
+    "Keep your eyes on the stars and your feet on the ground. You miss one hundred percent of the shots you do not take. Try to be a rainbow in someone else's cloud. The best way to predict the future is to create it ourselves.",
+    "It is during our darkest moments that we must focus to see the light. Do not go where the path may lead, go instead where there is no path and leave a trail. Be yourself; everyone else is already taken. Let us make our future now.",
+    "Warm coffee on a rainy morning can make the whole day feel different. The sound of droplets hitting the window pane brings a sense of calm. It is a perfect moment to read a book, write some thoughts down, or just listen to the quiet.",
+    "Nature does not hurry, yet everything is accomplished. The trees grow slowly but surely, stretching their branches toward the sky. Rivers carve paths through solid rock over thousands of years. Persistence and patience are powerful forces in our lives.",
+    "A journey of a thousand miles begins with a single step. The secret of getting ahead is getting started. Do not watch the clock; do what it does. Keep going. What lies behind us and what lies before us are tiny matters compared to what lies within us."
+  ],
+  hard: [
+    "The system administrator queried the PostgreSQL database, executing: `SELECT * FROM users WHERE status = 'active' ORDER BY created_at DESC;`. The query execution took exactly 0.042 seconds, returning a JSON array of 1,024 user records. However, a memory leak in the node.js backend process (PID: 9482) caused a 15% latency spike across all responsive endpoints.",
+    "Seneca once remarked: 'Life, if you know how to use it, is long.' (Consider the value of 100% devotion: it yields 10x returns!). Yet, modern distractions are ubiquitous; our smartphones, social feeds, and notifications constantly obfuscate our long-term goals. To succeed, one must juxtapose daily discipline against transient pleasures.",
+    "The celestial coordinates of the newly discovered exoplanet are 14h 29m 42s right ascension and -62° 40' 46\" declination. Observations suggest a carbon-based atmosphere with temperature variations between -150°C and 45°C. At an estimated distance of 4.2 light-years, it represents a remarkable cosmological target for the next generation of space telescopes.",
+    "A quintessential paradox of writing clean software code is that complexity must be hidden behind simple interfaces. As Dijkstra famously declared, 'Simplicity is a great virtue but it requires hard work to achieve it.' (For instance, wrapping asynchronous callbacks in promises or async/await syntax: `const data = await fetch(url).then(r => r.json());`).",
+    "The entrepreneur analyzed the company's financial records: Q1 revenue was $1,245,800 (a 12.5% increase year-over-year), while operational expenses reached €950,400. In their presentation, they highlighted three key performance indicators: customer acquisition cost, monthly recurring revenue, and churn rate. Success depends on maintaining a healthy 3:1 LTV-to-CAC ratio.",
+    "The labyrinth was an extraordinary, idiosyncratic structure, characterized by a kaleidoscope of winding paths, secret chambers, and dead ends. A sense of serendipity guided the travelers as they navigated the maze. 'Listen,' one whispered, hearing a mellifluous sound echoing through the stone corridors: a soft flute playing a haunting melody.",
+    "To implement responsive layouts, web developers combine semantic HTML5, CSS media queries, and Tailwind CSS classes. Example: `<div class=\"grid grid-cols-1 md:grid-cols-3 gap-6 p-4 border border-white/10\">...</div>`. This ensures that cards wrap on mobile displays but align side-by-side on desktop viewports. Proper alignment improves usability by 40%.",
+    "The Antikythera mechanism (circa 150-100 BC) is an ancient Greek analog computer used to predict astronomical positions and eclipses. It employed a complex system of over thirty bronze gears with triangular teeth. Historians call it a technological marvel; nothing of equal sophistication appeared again for over a millennium."
+  ]
+};
 
 function getWordsByDifficulty(level, count = 60) {
-  if (level === 'easy') {
-    // Easy: short common words only
-    const words = [];
-    for (let i = 0; i < count; i++) {
-      words.push(EASY_WORDS[Math.floor(Math.random() * EASY_WORDS.length)]);
-    }
-    return words;
-  }
-  if (level === 'hard') {
-    // Hard: mix of uncommon words, long words, and phrase challenges
-    const pool = [...WORD_LIST, ...HARD_EXTRA];
-    const words = [];
-    // 30% chance each: insert a phrase chunk
-    for (let i = 0; i < count; i++) {
-      if (Math.random() < 0.3 && words.length < count - 5) {
-        const phrase = HARD_PHRASES[Math.floor(Math.random() * HARD_PHRASES.length)]
-          .replace(/[.,!?]/g, '').split(/\s+/);
-        words.push(...phrase);
-      } else {
-        words.push(pool[Math.floor(Math.random() * pool.length)]);
+  const paras = PARAGRAPHS[level] || PARAGRAPHS['medium'];
+  let selectedWords = [];
+  const usedIndices = new Set();
+  
+  while (selectedWords.length < count) {
+    let idx = Math.floor(Math.random() * paras.length);
+    if (usedIndices.size < paras.length) {
+      while (usedIndices.has(idx)) {
+        idx = Math.floor(Math.random() * paras.length);
       }
-      if (words.length >= count) break;
+      usedIndices.add(idx);
     }
-    return words.slice(0, count);
+    const paraWords = paras[idx].split(/\s+/).filter(w => w.length > 0);
+    selectedWords = selectedWords.concat(paraWords);
   }
-  // Medium (default): full common list
-  return getRandomWords(count);
+  
+  return selectedWords.slice(0, count);
 }
 
 // Lessons for the typing tutorial — each is a curated word list with a focus

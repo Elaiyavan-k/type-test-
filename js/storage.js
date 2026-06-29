@@ -148,7 +148,11 @@ const Storage = {
       soundProfile: 'typewriter',
       ambientOn: false,
       ambientVolume: 0.04,
-      masterVolume: 0.6
+      masterVolume: 0.6,
+      mode: 'time',
+      wordsTarget: 25,
+      suddenDeath: false,
+      customText: ''
     });
   },
 
